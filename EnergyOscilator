@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digital Power Station Framework</title>
+  <style>
+    body {
+      margin: 0;
+      background: linear-gradient(to bottom, #0f0f0f, #1a1a1a);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="powerStationCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById('powerStationCanvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const gridSize = 10; // Number of rows and columns in the matrix
+    const cellSize = Math.min(canvas.width, canvas.height) / (gridSize + 2); // Size of each cell
+    const matrix = []; // Stores energy and entanglement data for each cell
+    const colors = ['#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#FFD700', '#33FFF5'];
+
+    // Initialize the matrix with random energy and entanglement values
+    for (let row = 0; row < gridSize; row++) {
+      matrix[row] = [];
+      for (let col = 0; col < gridSize; col++) {
+        matrix[row][col] = {
+          energy: Math.random() * 100, // Energy level (0 to 100)
+          entanglement: Math.random() * 100, // Entanglement level (0 to 100)
+          color: colors[Math.floor(Math.random() * colors.length)],
+          connections: [], // Connections to other cells
+        };
+      }
+    }
+
+    // Create connections between cells to simulate a power grid
+    function createConnections() {
+      for (let row = 0; row < gridSize; row++) {
+        for (let col = 0; col < gridSize; col++) {
+          const cell = matrix[row][col];
+          // Randomly connect to adjacent cells
+          if (row > 0 && Math.random() > 0.5) cell.connections.push(matrix[row - 1][col]); // Up
+          if (row < gridSize - 1 && Math.random() > 0.5) cell.connections.push(matrix[row + 1][col]); // Down
+          if (col > 0 && Math.random() > 0.5) cell.connections.push(matrix[row][col - 1]); // Left
+          if (col < gridSize - 1 && Math.random() > 0.5) cell.connections.push(matrix[row][col + 1]); // Right
+        }
+      }
+    }
+
+    createConnections();
+
+    function drawMatrix() {
+      for (let row = 0; row < gridSize; row++) {
+        for (let col = 0; col < gridSize; col++) {
+          const x = col * cellSize + cellSize;
+          const y = row * cellSize + cellSize;
+          const cell = matrix[row][col];
+
+          // Draw cell background based on energy level
+          ctx.fillStyle = cell.color;
+          ctx.globalAlpha = cell.energy / 100; // Transparency based on energy level
+          ctx.fillRect(x, y, cellSize - 5, cellSize - 5);
+
+          // Draw entanglement effect (circular overlay)
+          ctx.beginPath();
+          ctx.arc(
+            x + cellSize / 2,
+            y + cellSize / 2,
+            (cell.entanglement / 100) * (cellSize / 2), // Radius based on entanglement level
+            0,
+            Math.PI * 2
+          );
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; // White stroke for entanglement effect
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.closePath();
+
+          // Draw energy and entanglement values inside the cell
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#fff';
+          ctx.font = '12px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(
+            `E:${Math.round(cell.energy)}%`,
+            x + cellSize / 2,
+            y + cellSize / 2 - 10
+          );
+          ctx.fillText(
+            `En:${Math.round(cell.entanglement)}%`,
+            x + cellSize / 2,
+            y + cellSize / 2 + 10
+          );
+
+          // Draw connections as lines between cells
+          cell.connections.forEach(connection => {
+            const connectionX = connection.connections.indexOf(cell) * cellSize + cellSize;
+            const connectionY = connection.connections.indexOf(cell) * cellSize + cellSize;
+
+            ctx.beginPath();
+            ctx.moveTo(x + cellSize / 2, y + cellSize / 2);
+            ctx.lineTo(connectionX + cellSize / 2, connectionY + cellSize / 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.closePath();
+          });
+        }
+      }
+    }
+
+    function updateMatrix() {
+      // Dynamically update energy and entanglement levels for animation
+      for (let row = 0; row < gridSize; row++) {
+        for (let col = 0; col < gridSize; col++) {
+          const cell = matrix[row][col];
+          cell.energy = Math.max(0, Math.min(100, cell.energy + (Math.random() - 0.5) * 5));
+          cell.entanglement = Math.max(0, Math.min(100, cell.entanglement + (Math.random() - 0.5) * 5));
+        }
+      }
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawMatrix();
+      updateMatrix();
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
