@@ -1,0 +1,220 @@
+Let's proceed with the complete implementation. Here's the updated `physics-sim` project with all the required enhancements:
+
+### 1. `src/simulation/oscillator.py`
+This file contains the `DampedHarmonicOscillator` class with damping functionality.
+
+```python name=src/simulation/oscillator.py
+import numpy as np
+
+class DampedHarmonicOscillator:
+    """
+    A damped harmonic oscillator simulation.
+
+    Parameters:
+        mass (float): Mass of the oscillating object (kg). Defaults to 1.0.
+        k (float): Spring constant (N/m). Defaults to 1.0.
+        b (float): Damping coefficient (Ns/m). Defaults to 0.1.
+        x0 (float): Initial position (m). Defaults to 1.0.
+        v0 (float): Initial velocity (m/s). Defaults to 0.0.
+    """
+    def __init__(self, mass=1.0, k=1.0, b=0.1, x0=1.0, v0=0.0):
+        if mass <= 0:
+            raise ValueError("Mass must be positive.")
+        if k < 0:
+            raise ValueError("Spring constant k cannot be negative.")
+        if b < 0:
+            raise ValueError("Damping coefficient b cannot be negative.")
+
+        self.mass = mass
+        self.k = k
+        self.b = b
+        self.x0 = x0
+        self.v0 = v0
+
+        self.omega0 = np.sqrt(k / mass)  # Natural angular frequency (undamped)
+        self.gamma = b / (2 * mass)    # Damping ratio component
+
+        # Determine damping regime and calculate relevant parameters
+        damping_factor = self.gamma**2 - self.omega0**2
+
+        if np.isclose(damping_factor, 0):  # Critically damped
+            self.regime = "critically_damped"
+            self.omega = self.omega0  # Not strictly needed but keeps omega defined
+        elif damping_factor > 0:         # Overdamped
+            self.regime = "overdamped"
+            self.r1 = -self.gamma + np.sqrt(damping_factor)
+            self.r2 = -self.gamma - np.sqrt(damping_factor)
+        else:                           # Underdamped
+            self.regime = "underdamped"
+            self.omega_d = np.sqrt(-damping_factor)  # Damped angular frequency
+
+    def position(self, t):
+        """Calculate position at time t based on the damping regime."""
+        t = np.asarray(t)  # Ensure t is array-like for vectorized operations
+        if self.regime == "underdamped":
+            A = self.x0
+            B = (self.v0 + self.gamma * self.x0) / self.omega_d
+            return np.exp(-self.gamma * t) * (A * np.cos(self.omega_d * t) + B * np.sin(self.omega_d * t))
+        elif self.regime == "critically_damped":
+            A = self.x0
+            B = self.v0 + self.gamma * self.x0
+            return np.exp(-self.gamma * t) * (A + B * t)
+        elif self.regime == "overdamped":
+            denom = self.r1 - self.r2
+            C1 = (self.v0 - self.r2 * self.x0) / denom
+            C2 = (self.r1 * self.x0 - self.v0) / denom
+            return C1 * np.exp(self.r1 * t) + C2 * np.exp(self.r2 * t)
+
+    def velocity(self, t):
+        """Calculate velocity at time t based on the damping regime."""
+        t = np.asarray(t)  # Ensure t is array-like
+        if self.regime == "underdamped":
+            A = self.x0
+            B = (self.v0 + self.gamma * self.x0) / self.omega_d
+            term1 = -self.gamma * self.position(t)
+            term2 = np.exp(-self.gamma * t) * (-A * self.omega_d * np.sin(self.omega_d * t) + B * self.omega_d * np.cos(self.omega_d * t))
+            return term1 + term2
+        elif self.regime == "critically_damped":
+            A = self.x0
+            B = self.v0 + self.gamma * self.x0
+            term1 = -self.gamma * self.position(t)
+            term2 = np.exp(-self.gamma * t) * B
+            return term1 + term2
+        elif self.regime == "overdamped":
+            denom = self.r1 - self.r2
+            C1 = (self.v0 - self.r2 * self.x0) / denom
+            C2 = (self.r1 * self.x0 - self.v0) / denom
+            return C1 * self.r1 * np.exp(self.r1 * t) + C2 * self.r2 * np.exp(self.r2 * t)
+
+    def energy(self, t):
+        """Calculate instantaneous mechanical energy (KE + PE) at time t. Note: Not conserved for damped."""
+        t = np.asarray(t)
+        x = self.position(t)
+        v = self.velocity(t)
+        kinetic_energy = 0.5 * self.mass * v**2
+        potential_energy = 0.5 * self.k * x**2
+        return kinetic_energy + potential_energy
+
+    def get_regime(self):
+        """Returns the damping regime ('underdamped', 'critically_damped', 'overdamped')."""
+        return self.regime
+```
+
+---
+
+### 2. `src/visualization/plotter.py`
+This file includes the plotting functionality for the damped harmonic oscillator.
+
+```python name=src/visualization/plotter.py
+import numpy as np
+import matplotlib.pyplot as plt
+
+def plot_damped_oscillator(oscillator, t_max, num_points=1000):
+    """
+    Plot the motion and energy of a damped harmonic oscillator.
+
+    Parameters:
+        oscillator: DampedHarmonicOscillator instance
+        t_max (float): Maximum time to plot
+        num_points (int): Number of points to plot
+    """
+    t = np.linspace(0, t_max, num_points)
+    x = oscillator.position(t)
+    v = oscillator.velocity(t)
+    energy = oscillator.energy(t)
+
+    # Create the figure and axes
+    fig, axs = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
+
+    # Plot position vs time
+    axs[0].plot(t, x, label="Position (x)", color="blue")
+    axs[0].set_ylabel("Position (m)")
+    axs[0].set_title(f"Damped Harmonic Oscillator ({oscillator.get_regime().replace('_', ' ').title()})")
+    axs[0].legend()
+    axs[0].grid()
+
+    # Plot velocity vs time
+    axs[1].plot(t, v, label="Velocity (v)", color="green")
+    axs[1].set_ylabel("Velocity (m/s)")
+    axs[1].legend()
+    axs[1].grid()
+
+    # Plot energy vs time
+    axs[2].plot(t, energy, label="Energy (KE + PE)", color="red")
+    axs[2].set_xlabel("Time (s)")
+    axs[2].set_ylabel("Energy (J)")
+    axs[2].legend()
+    axs[2].grid()
+
+    # Show the plots
+    plt.tight_layout()
+    plt.show()
+```
+
+---
+
+### 3. `README.md`
+The `README.md` file updates to include information about the new damped harmonic oscillator feature.
+
+````markdown name=README.md
+# Physics Simulation: Damped Harmonic Oscillator
+
+This project simulates the motion of a damped harmonic oscillator and visualizes its behavior. It supports different damping regimes: underdamped, critically damped, and overdamped.
+
+## Features
+
+- **Damped Harmonic Oscillator:** Parameters include mass, spring constant, damping coefficient, initial position, and velocity.
+- **Damping Regimes:** Automatically determines if the system is underdamped, critically damped, or overdamped.
+- **Energy Calculation:** Computes the instantaneous kinetic and potential energy.
+- **Visualization:** Plots position, velocity, and energy over time.
+
+## Installation
+
+```bash
+git clone https://github.com/your-username/physics-sim.git
+cd physics-sim
+pip install -r requirements.txt
+```
+
+## Usage
+
+### Simulation
+The `DampedHarmonicOscillator` class simulates the oscillator:
+```python
+from src/simulation/oscillator import DampedHarmonicOscillator
+
+# Create a damped harmonic oscillator
+oscillator = DampedHarmonicOscillator(mass=1.0, k=1.0, b=0.2, x0=1.0, v0=0.0)
+
+# Calculate position, velocity, and energy at a given time
+time = 5.0  # seconds
+position = oscillator.position(time)
+velocity = oscillator.velocity(time)
+energy = oscillator.energy(time)
+
+print(f"Position: {position}, Velocity: {velocity}, Energy: {energy}")
+```
+
+### Visualization
+The `plot_damped_oscillator` function generates plots for the oscillator's motion and energy:
+```python
+from src/simulation/oscillator import DampedHarmonicOscillator
+from src/visualization/plotter import plot_damped_oscillator
+
+# Create the oscillator
+oscillator = DampedHarmonicOscillator(mass=1.0, k=1.0, b=0.2, x0=1.0, v0=0.0)
+
+# Plot the simulation
+plot_damped_oscillator(oscillator, t_max=10.0)
+```
+
+## Contributing
+
+Contributions are welcome! Please submit a pull request or open an issue for suggestions and fixes.
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
+````
+
+This completes the implementation and documentation for enhancing the project. Let me know if there’s anything else you’d like to add!
