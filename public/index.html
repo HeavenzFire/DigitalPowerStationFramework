@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Digital Power Plant</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif; margin: 0; background: #0b1020; color: #e6eefc; }
+    header { padding: 16px 24px; background: linear-gradient(90deg, #0e1530, #111a3a); border-bottom: 1px solid #1f2a4a; position: sticky; top: 0; z-index: 10; }
+    h1 { margin: 0; font-size: 18px; letter-spacing: 0.6px; }
+    main { padding: 24px; display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
+    .card { background: #0f1733; border: 1px solid #1f2a4a; border-radius: 12px; padding: 16px; box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
+    .chart { height: 260px; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .kpi { background: #0c142c; border: 1px solid #1a2342; border-radius: 10px; padding: 12px; }
+    .kpi h3 { margin: 0; font-size: 12px; color: #8ca3d3; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; }
+    .kpi .v { margin-top: 6px; font-size: 24px; font-weight: 700; color: #f3f7ff; }
+    .controls { display: grid; gap: 12px; }
+    input[type="range"] { width: 100%; }
+    .hint { color: #8aa0cf; font-size: 12px; }
+    .pill { display: inline-block; padding: 4px 10px; border-radius: 999px; background: #16224a; color: #9eb4e6; border: 1px solid #223061; font-size: 12px; }
+    a { color: #9eb4e6; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Digital Power Plant</h1>
+  </header>
+  <main>
+    <section class="card">
+      <div class="grid">
+        <div class="kpi"><h3>Demand</h3><div class="v" id="demand">—</div></div>
+        <div class="kpi"><h3>Renewables</h3><div class="v" id="ren">—</div></div>
+        <div class="kpi"><h3>Battery</h3><div class="v" id="bat">—</div></div>
+        <div class="kpi"><h3>Grid</h3><div class="v" id="grid">—</div></div>
+        <div class="kpi"><h3>SOC</h3><div class="v" id="soc">—</div></div>
+      </div>
+      <canvas id="chart" class="chart"></canvas>
+    </section>
+    <aside class="card">
+      <h3 style="margin-top:0">Controls</h3>
+      <div class="controls">
+        <label>Grid setpoint (MW): <span class="pill" id="gridSetV">auto</span></label>
+        <input id="gridSet" type="range" min="-50" max="50" value="0" step="1" />
+        <div class="hint">Drag to target import (+) or export (−). Double-click to clear.</div>
+      </div>
+      <p class="hint" style="margin-top:16px">Data updates every second. API: <code>/api/telemetry</code></p>
+      <p class="hint">Made with Fastify + Canvas.</p>
+    </aside>
+  </main>
+  <script>
+    const fmt = (x) => `${x.toFixed(1)} MW`;
+    const fmtSoc = (x) => `${x.toFixed(0)} MWh`;
+
+    const points = [];
+    const maxPoints = 240; // ~4 minutes
+
+    const canvas = document.getElementById('chart');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      const dpr = window.devicePixelRatio || 1;
+      const width = canvas.clientWidth || canvas.parentElement.clientWidth - 32;
+      const height = canvas.clientHeight || 260;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
+    }
+    window.addEventListener('resize', resize);
+
+    function draw() {
+      const w = canvas.width / (window.devicePixelRatio||1);
+      const h = canvas.height / (window.devicePixelRatio||1);
+      ctx.clearRect(0,0,w,h);
+
+      // axes
+      ctx.strokeStyle = '#1e2a4a';
+      ctx.lineWidth = 1;
+      for (let i=0;i<6;i++){ const y=(h-24)*i/5+12; ctx.beginPath(); ctx.moveTo(40,y); ctx.lineTo(w-12,y); ctx.stroke(); }
+
+      const series = [
+        { key: 'demandMw', color: '#ff9a8b' },
+        { key: 'solarMw', color: '#ffd56a' },
+        { key: 'windMw', color: '#7fd1ff' },
+        { key: 'batteryMw', color: '#9b8cff' },
+        { key: 'gridMw', color: '#8be0a4' },
+      ];
+
+      const allVals = points.flatMap(p => series.map(s => Math.abs(p[s.key])));
+      const maxVal = Math.max(50, ...allVals, 1);
+
+      function yScale(v){ return h-20 - (h-40)* ( (v+maxVal) / (2*maxVal) ); }
+
+      // zero line
+      ctx.strokeStyle = '#2c3a66'; ctx.beginPath(); ctx.moveTo(40, yScale(0)); ctx.lineTo(w-12, yScale(0)); ctx.stroke();
+
+      // labels
+      ctx.fillStyle = '#9fb2e6'; ctx.font = '12px system-ui';
+      ctx.fillText(`${maxVal.toFixed(0)} MW`, 6, 12);
+      ctx.fillText('0', 24, yScale(0)+4);
+      ctx.fillText(`${(-maxVal).toFixed(0)} MW`, 0, h-8);
+
+      const left = 48, right = w-16; const top = 12, bottom = h-20;
+      const count = points.length || 1;
+      series.forEach((s, idx) => {
+        ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.beginPath();
+        for (let i=0;i<count;i++){
+          const x = left + (right-left)* i/Math.max(1,count-1);
+          const y = yScale(points[i][s.key]);
+          if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+      });
+    }
+
+    async function poll() {
+      try {
+        const res = await fetch('/api/telemetry');
+        const data = await res.json();
+        const p = data.now;
+        document.getElementById('demand').textContent = fmt(p.demandMw);
+        document.getElementById('ren').textContent = fmt(p.solarMw + p.windMw);
+        document.getElementById('bat').textContent = fmt(p.batteryMw);
+        document.getElementById('grid').textContent = fmt(p.gridMw);
+        document.getElementById('soc').textContent = fmtSoc(p.socMwh);
+
+        points.push(p);
+        while (points.length > maxPoints) points.shift();
+        draw();
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setTimeout(poll, 1000);
+      }
+    }
+
+    const slider = document.getElementById('gridSet');
+    const pill = document.getElementById('gridSetV');
+
+    function updateSetpointLabel(v) {
+      pill.textContent = v === null ? 'auto' : `${v} MW`;
+    }
+
+    slider.addEventListener('input', async (e) => {
+      const v = Number(e.target.value);
+      updateSetpointLabel(v);
+      try {
+        await fetch('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: 'set_grid_mw', value: v }) });
+      } catch {}
+    });
+
+    slider.addEventListener('dblclick', async () => {
+      updateSetpointLabel(null);
+      try { await fetch('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: 'clear_grid_setpoint' }) }); } catch {}
+    });
+
+    resize();
+    poll();
+  </script>
+</body>
+</html>
