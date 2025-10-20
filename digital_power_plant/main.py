@@ -16,6 +16,7 @@ from core.power_plant_manager import PowerPlantManager
 from core.ai_controller import AIController
 from core.physics_simulator import PhysicsSimulator
 from core.safety_system import SafetySystem
+from core.scientific_validation import ScientificValidator
 from api.websocket_handler import WebSocketManager
 from api.rest_api import router as api_router
 
@@ -46,6 +47,16 @@ async def lifespan(app: FastAPI):
     physics_simulator = PhysicsSimulator()
     safety_system = SafetySystem()
     websocket_manager = WebSocketManager()
+    
+    # Run scientific validation
+    logger.info("🔬 Running scientific validation...")
+    validator = ScientificValidator()
+    validation_results = validator.run_all_validations()
+    
+    if not validation_results.get('overall', {}).get('passed', False):
+        logger.warning("⚠️ Scientific validation failed - proceeding with caution")
+    else:
+        logger.info("✅ Scientific validation passed - system is mathematically sound")
     
     # Start background tasks
     asyncio.create_task(power_plant_manager.start())
