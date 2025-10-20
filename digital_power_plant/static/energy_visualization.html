@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Power Plant - Energy Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            background: linear-gradient(to bottom, #0f0f0f, #1a1a1a);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        .visualization-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+        
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        
+        .control-panel h3 {
+            margin: 0 0 15px 0;
+            color: #64B5F6;
+            font-size: 1.2rem;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #B0BEC5;
+        }
+        
+        .control-group input[type="range"] {
+            width: 200px;
+            margin-right: 10px;
+        }
+        
+        .control-group input[type="number"] {
+            width: 60px;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            color: white;
+        }
+        
+        .control-group button {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .control-group button:hover {
+            background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+        }
+        
+        .status-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            min-width: 200px;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .status-label {
+            color: #B0BEC5;
+        }
+        
+        .status-value {
+            color: #64B5F6;
+            font-weight: bold;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        
+        .legend h4 {
+            margin: 0 0 10px 0;
+            color: #64B5F6;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+            font-size: 0.8rem;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 3px;
+        }
+        
+        .energy-flow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            color: #64B5F6;
+            text-align: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="visualization-container">
+        <canvas id="powerStationCanvas"></canvas>
+        
+        <div class="control-panel">
+            <h3>Energy Control</h3>
+            
+            <div class="control-group">
+                <label for="gridSize">Grid Size:</label>
+                <input type="range" id="gridSize" min="5" max="20" value="10">
+                <input type="number" id="gridSizeValue" value="10" min="5" max="20">
+            </div>
+            
+            <div class="control-group">
+                <label for="energyLevel">Energy Level:</label>
+                <input type="range" id="energyLevel" min="0" max="100" value="50">
+                <input type="number" id="energyLevelValue" value="50" min="0" max="100">
+            </div>
+            
+            <div class="control-group">
+                <label for="entanglementLevel">Entanglement:</label>
+                <input type="range" id="entanglementLevel" min="0" max="100" value="50">
+                <input type="number" id="entanglementLevelValue" value="50" min="0" max="100">
+            </div>
+            
+            <div class="control-group">
+                <button onclick="resetMatrix()">Reset Matrix</button>
+                <button onclick="toggleAnimation()">Toggle Animation</button>
+            </div>
+        </div>
+        
+        <div class="status-display">
+            <h3>System Status</h3>
+            <div class="status-item">
+                <span class="status-label">Total Energy:</span>
+                <span class="status-value" id="totalEnergy">0%</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Total Entanglement:</span>
+                <span class="status-value" id="totalEntanglement">0%</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Active Cells:</span>
+                <span class="status-value" id="activeCells">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Connections:</span>
+                <span class="status-value" id="totalConnections">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Efficiency:</span>
+                <span class="status-value" id="efficiency">0%</span>
+            </div>
+        </div>
+        
+        <div class="legend">
+            <h4>Energy Types</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #FF5733;"></div>
+                <span>Thermal Energy</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #33FF57;"></div>
+                <span>Kinetic Energy</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #3357FF;"></div>
+                <span>Electrical Energy</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #FF33A1;"></div>
+                <span>Quantum Energy</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #FFD700;"></div>
+                <span>Potential Energy</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #33FFF5;"></div>
+                <span>Entangled Energy</span>
+            </div>
+        </div>
+        
+        <div class="energy-flow">
+            <div>⚡ DIGITAL POWER PLANT ⚡</div>
+            <div style="font-size: 1rem; margin-top: 10px;">Quantum Energy Matrix</div>
+        </div>
+    </div>
+
+    <script>
+        class DigitalPowerPlantVisualization {
+            constructor() {
+                this.canvas = document.getElementById('powerStationCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.gridSize = 10;
+                this.cellSize = 0;
+                this.matrix = [];
+                this.colors = ['#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#FFD700', '#33FFF5'];
+                this.animationId = null;
+                this.isAnimating = true;
+                this.energyLevel = 50;
+                this.entanglementLevel = 50;
+                
+                this.setupCanvas();
+                this.initializeMatrix();
+                this.setupControls();
+                this.animate();
+            }
+            
+            setupCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.cellSize = Math.min(this.canvas.width, this.canvas.height) / (this.gridSize + 2);
+                this.canvas.height = window.innerHeight;
+            }
+            
+            initializeMatrix() {
+                this.matrix = [];
+                for (let row = 0; row < this.gridSize; row++) {
+                    this.matrix[row] = [];
+                    for (let col = 0; col < this.gridSize; col++) {
+                        this.matrix[row][col] = {
+                            energy: Math.random() * this.energyLevel,
+                            entanglement: Math.random() * this.entanglementLevel,
+                            color: this.colors[Math.floor(Math.random() * this.colors.length)],
+                            connections: [],
+                            x: col * this.cellSize + this.cellSize,
+                            y: row * this.cellSize + this.cellSize
+                        };
+                    }
+                }
+                this.createConnections();
+            }
+            
+            createConnections() {
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        const cell = this.matrix[row][col];
+                        cell.connections = [];
+                        
+                        // Connect to adjacent cells based on energy similarity
+                        const directions = [
+                            [-1, 0], [1, 0], [0, -1], [0, 1],
+                            [-1, -1], [-1, 1], [1, -1], [1, 1]
+                        ];
+                        
+                        directions.forEach(([dr, dc]) => {
+                            const newRow = row + dr;
+                            const newCol = col + dc;
+                            
+                            if (newRow >= 0 && newRow < this.gridSize && 
+                                newCol >= 0 && newCol < this.gridSize) {
+                                const neighbor = this.matrix[newRow][newCol];
+                                const energyDiff = Math.abs(cell.energy - neighbor.energy);
+                                
+                                if (energyDiff < 20 && Math.random() > 0.3) {
+                                    cell.connections.push(neighbor);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+            
+            setupControls() {
+                // Grid size control
+                const gridSizeSlider = document.getElementById('gridSize');
+                const gridSizeValue = document.getElementById('gridSizeValue');
+                
+                gridSizeSlider.addEventListener('input', (e) => {
+                    this.gridSize = parseInt(e.target.value);
+                    gridSizeValue.value = this.gridSize;
+                    this.setupCanvas();
+                    this.initializeMatrix();
+                });
+                
+                gridSizeValue.addEventListener('change', (e) => {
+                    this.gridSize = parseInt(e.target.value);
+                    gridSizeSlider.value = this.gridSize;
+                    this.setupCanvas();
+                    this.initializeMatrix();
+                });
+                
+                // Energy level control
+                const energySlider = document.getElementById('energyLevel');
+                const energyValue = document.getElementById('energyLevelValue');
+                
+                energySlider.addEventListener('input', (e) => {
+                    this.energyLevel = parseInt(e.target.value);
+                    energyValue.value = this.energyLevel;
+                });
+                
+                energyValue.addEventListener('change', (e) => {
+                    this.energyLevel = parseInt(e.target.value);
+                    energySlider.value = this.energyLevel;
+                });
+                
+                // Entanglement level control
+                const entanglementSlider = document.getElementById('entanglementLevel');
+                const entanglementValue = document.getElementById('entanglementLevelValue');
+                
+                entanglementSlider.addEventListener('input', (e) => {
+                    this.entanglementLevel = parseInt(e.target.value);
+                    entanglementValue.value = this.entanglementLevel;
+                });
+                
+                entanglementValue.addEventListener('change', (e) => {
+                    this.entanglementLevel = parseInt(e.target.value);
+                    entanglementSlider.value = this.entanglementLevel;
+                });
+                
+                // Canvas click handler
+                this.canvas.addEventListener('click', (e) => {
+                    this.handleCanvasClick(e);
+                });
+            }
+            
+            handleCanvasClick(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Find clicked cell
+                const col = Math.floor((x - this.cellSize) / this.cellSize);
+                const row = Math.floor((y - this.cellSize) / this.cellSize);
+                
+                if (row >= 0 && row < this.gridSize && col >= 0 && col < this.gridSize) {
+                    const cell = this.matrix[row][col];
+                    cell.energy = Math.min(100, cell.energy + 20);
+                    cell.entanglement = Math.min(100, cell.entanglement + 20);
+                    
+                    // Propagate energy to connected cells
+                    cell.connections.forEach(neighbor => {
+                        neighbor.energy = Math.min(100, neighbor.energy + 5);
+                        neighbor.entanglement = Math.min(100, neighbor.entanglement + 5);
+                    });
+                }
+            }
+            
+            drawMatrix() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                let totalEnergy = 0;
+                let totalEntanglement = 0;
+                let activeCells = 0;
+                let totalConnections = 0;
+                
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        const cell = this.matrix[row][col];
+                        const x = cell.x;
+                        const y = cell.y;
+                        
+                        // Draw cell background based on energy level
+                        this.ctx.fillStyle = cell.color;
+                        this.ctx.globalAlpha = cell.energy / 100;
+                        this.ctx.fillRect(x, y, this.cellSize - 5, this.cellSize - 5);
+                        
+                        // Draw entanglement effect (circular overlay)
+                        this.ctx.beginPath();
+                        this.ctx.arc(
+                            x + this.cellSize / 2,
+                            y + this.cellSize / 2,
+                            (cell.entanglement / 100) * (this.cellSize / 2),
+                            0,
+                            Math.PI * 2
+                        );
+                        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.stroke();
+                        this.ctx.closePath();
+                        
+                        // Draw energy and entanglement values
+                        this.ctx.globalAlpha = 1;
+                        this.ctx.fillStyle = '#fff';
+                        this.ctx.font = `${Math.max(8, this.cellSize / 8)}px Arial`;
+                        this.ctx.textAlign = 'center';
+                        this.ctx.textBaseline = 'middle';
+                        
+                        this.ctx.fillText(
+                            `E:${Math.round(cell.energy)}%`,
+                            x + this.cellSize / 2,
+                            y + this.cellSize / 2 - 5
+                        );
+                        this.ctx.fillText(
+                            `En:${Math.round(cell.entanglement)}%`,
+                            x + this.cellSize / 2,
+                            y + this.cellSize / 2 + 5
+                        );
+                        
+                        // Draw connections
+                        cell.connections.forEach(connection => {
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(x + this.cellSize / 2, y + this.cellSize / 2);
+                            this.ctx.lineTo(connection.x + this.cellSize / 2, connection.y + this.cellSize / 2);
+                            this.ctx.strokeStyle = 'rgba(100, 181, 246, 0.6)';
+                            this.ctx.lineWidth = 1;
+                            this.ctx.stroke();
+                            this.ctx.closePath();
+                        });
+                        
+                        // Update statistics
+                        totalEnergy += cell.energy;
+                        totalEntanglement += cell.entanglement;
+                        if (cell.energy > 10) activeCells++;
+                        totalConnections += cell.connections.length;
+                    }
+                }
+                
+                // Update status display
+                this.updateStatusDisplay(totalEnergy, totalEntanglement, activeCells, totalConnections);
+            }
+            
+            updateStatusDisplay(totalEnergy, totalEntanglement, activeCells, totalConnections) {
+                const avgEnergy = totalEnergy / (this.gridSize * this.gridSize);
+                const avgEntanglement = totalEntanglement / (this.gridSize * this.gridSize);
+                const efficiency = (avgEnergy + avgEntanglement) / 2;
+                
+                document.getElementById('totalEnergy').textContent = `${avgEnergy.toFixed(1)}%`;
+                document.getElementById('totalEntanglement').textContent = `${avgEntanglement.toFixed(1)}%`;
+                document.getElementById('activeCells').textContent = activeCells;
+                document.getElementById('totalConnections').textContent = totalConnections;
+                document.getElementById('efficiency').textContent = `${efficiency.toFixed(1)}%`;
+            }
+            
+            updateMatrix() {
+                if (!this.isAnimating) return;
+                
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        const cell = this.matrix[row][col];
+                        
+                        // Update energy with some randomness and decay
+                        const energyChange = (Math.random() - 0.5) * 2;
+                        cell.energy = Math.max(0, Math.min(100, cell.energy + energyChange));
+                        
+                        // Update entanglement
+                        const entanglementChange = (Math.random() - 0.5) * 2;
+                        cell.entanglement = Math.max(0, Math.min(100, cell.entanglement + entanglementChange));
+                        
+                        // Energy transfer between connected cells
+                        cell.connections.forEach(neighbor => {
+                            const energyDiff = cell.energy - neighbor.energy;
+                            if (Math.abs(energyDiff) > 5) {
+                                const transfer = energyDiff * 0.1;
+                                cell.energy -= transfer;
+                                neighbor.energy += transfer;
+                            }
+                        });
+                    }
+                }
+            }
+            
+            animate() {
+                this.drawMatrix();
+                this.updateMatrix();
+                this.animationId = requestAnimationFrame(() => this.animate());
+            }
+            
+            resetMatrix() {
+                this.initializeMatrix();
+            }
+            
+            toggleAnimation() {
+                this.isAnimating = !this.isAnimating;
+                if (this.isAnimating && !this.animationId) {
+                    this.animate();
+                }
+            }
+        }
+        
+        // Global functions for button handlers
+        function resetMatrix() {
+            visualization.resetMatrix();
+        }
+        
+        function toggleAnimation() {
+            visualization.toggleAnimation();
+        }
+        
+        // Initialize visualization
+        const visualization = new DigitalPowerPlantVisualization();
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            visualization.setupCanvas();
+        });
+    </script>
+</body>
+</html>

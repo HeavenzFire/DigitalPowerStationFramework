@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Power Plant - Control Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 50%, #0c0c0c 100%);
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 300;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-normal { background-color: #4CAF50; }
+        .status-warning { background-color: #FF9800; }
+        .status-critical { background-color: #F44336; }
+        .status-emergency { background-color: #E91E63; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 1.5rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel h2 {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: #64B5F6;
+            border-bottom: 2px solid rgba(100, 181, 246, 0.3);
+            padding-bottom: 0.5rem;
+        }
+
+        .power-overview {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, rgba(100, 181, 246, 0.1) 0%, rgba(100, 181, 246, 0.05) 100%);
+            border: 1px solid rgba(100, 181, 246, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #64B5F6;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #B0BEC5;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .units-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .unit-card {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%);
+            border: 1px solid rgba(76, 175, 80, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            position: relative;
+        }
+
+        .unit-card.offline {
+            background: linear-gradient(135deg, rgba(158, 158, 158, 0.1) 0%, rgba(158, 158, 158, 0.05) 100%);
+            border-color: rgba(158, 158, 158, 0.2);
+        }
+
+        .unit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .unit-name {
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .unit-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-online { background-color: #4CAF50; color: white; }
+        .status-offline { background-color: #9E9E9E; color: white; }
+
+        .unit-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .unit-metric {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .unit-controls {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #F44336 0%, #D32F2F 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #D32F2F 0%, #C62828 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        }
+
+        .safety-panel {
+            grid-column: 1 / -1;
+        }
+
+        .safety-events {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .safety-event {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid #4CAF50;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .safety-event.warning {
+            border-left-color: #FF9800;
+        }
+
+        .safety-event.critical {
+            border-left-color: #F44336;
+        }
+
+        .safety-event.emergency {
+            border-left-color: #E91E63;
+            animation: emergency-flash 1s infinite;
+        }
+
+        @keyframes emergency-flash {
+            0%, 50% { background-color: rgba(233, 30, 99, 0.1); }
+            51%, 100% { background-color: rgba(255, 255, 255, 0.05); }
+        }
+
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .event-type {
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .event-timestamp {
+            font-size: 0.8rem;
+            color: #B0BEC5;
+        }
+
+        .event-message {
+            color: #E0E0E0;
+        }
+
+        .physics-panel {
+            grid-column: 1 / -1;
+        }
+
+        .turbine-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .turbine-card {
+            background: linear-gradient(135deg, rgba(255, 152, 0, 0.1) 0%, rgba(255, 152, 0, 0.05) 100%);
+            border: 1px solid rgba(255, 152, 0, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .turbine-name {
+            font-weight: bold;
+            color: #FF9800;
+            margin-bottom: 1rem;
+        }
+
+        .turbine-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .ai-panel {
+            grid-column: 1 / -1;
+        }
+
+        .ai-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .connection-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .connection-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #F44336;
+        }
+
+        .connection-dot.connected {
+            background-color: #4CAF50;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #B0BEC5;
+        }
+
+        .error {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            color: #F44336;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                padding: 1rem;
+            }
+            
+            .power-overview {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚡ Digital Power Plant Control Center</h1>
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot status-normal" id="overall-status"></div>
+                <span id="overall-status-text">System Normal</span>
+            </div>
+            <div id="current-time"></div>
+            <div id="connection-count">Connections: 0</div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- Power Overview -->
+        <div class="panel power-overview">
+            <h2>Power Overview</h2>
+            <div class="metric-card">
+                <div class="metric-value" id="total-power">0 MW</div>
+                <div class="metric-label">Total Output</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="total-demand">0 MW</div>
+                <div class="metric-label">Demand</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="efficiency">0%</div>
+                <div class="metric-label">Efficiency</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value" id="temperature">0°C</div>
+                <div class="metric-label">Temperature</div>
+            </div>
+        </div>
+
+        <!-- Generation Units -->
+        <div class="panel">
+            <h2>Generation Units</h2>
+            <div class="units-grid" id="units-grid">
+                <div class="loading">Loading units...</div>
+            </div>
+        </div>
+
+        <!-- Safety System -->
+        <div class="panel safety-panel">
+            <h2>Safety System</h2>
+            <div class="safety-events" id="safety-events">
+                <div class="loading">Loading safety events...</div>
+            </div>
+        </div>
+
+        <!-- Physics Simulation -->
+        <div class="panel physics-panel">
+            <h2>Physics Simulation</h2>
+            <div class="turbine-grid" id="turbine-grid">
+                <div class="loading">Loading turbine data...</div>
+            </div>
+        </div>
+
+        <!-- AI Controller -->
+        <div class="panel ai-panel">
+            <h2>AI Controller</h2>
+            <div class="ai-metrics" id="ai-metrics">
+                <div class="loading">Loading AI data...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="connection-status">
+        <div class="connection-indicator">
+            <div class="connection-dot" id="connection-dot"></div>
+            <span id="connection-status">Disconnected</span>
+        </div>
+    </div>
+
+    <script>
+        class DigitalPowerPlantDashboard {
+            constructor() {
+                this.ws = null;
+                this.reconnectInterval = null;
+                this.updateInterval = null;
+                this.isConnected = false;
+                
+                this.init();
+            }
+
+            init() {
+                this.connectWebSocket();
+                this.startUpdateTimer();
+                this.updateCurrentTime();
+            }
+
+            connectWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws`;
+                
+                try {
+                    this.ws = new WebSocket(wsUrl);
+                    
+                    this.ws.onopen = () => {
+                        console.log('WebSocket connected');
+                        this.isConnected = true;
+                        this.updateConnectionStatus(true);
+                        this.subscribeToUpdates();
+                        this.clearReconnectInterval();
+                    };
+                    
+                    this.ws.onmessage = (event) => {
+                        this.handleMessage(JSON.parse(event.data));
+                    };
+                    
+                    this.ws.onclose = () => {
+                        console.log('WebSocket disconnected');
+                        this.isConnected = false;
+                        this.updateConnectionStatus(false);
+                        this.scheduleReconnect();
+                    };
+                    
+                    this.ws.onerror = (error) => {
+                        console.error('WebSocket error:', error);
+                        this.isConnected = false;
+                        this.updateConnectionStatus(false);
+                    };
+                } catch (error) {
+                    console.error('Failed to connect WebSocket:', error);
+                    this.scheduleReconnect();
+                }
+            }
+
+            subscribeToUpdates() {
+                const subscriptions = [
+                    'power_plant_status',
+                    'safety_events',
+                    'physics_data',
+                    'ai_control'
+                ];
+                
+                subscriptions.forEach(type => {
+                    this.sendMessage({
+                        type: 'subscribe',
+                        subscription_type: type
+                    });
+                });
+            }
+
+            sendMessage(message) {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify(message));
+                }
+            }
+
+            handleMessage(data) {
+                switch (data.type) {
+                    case 'broadcast':
+                        this.handleBroadcast(data);
+                        break;
+                    case 'success':
+                        console.log('Success:', data.message);
+                        break;
+                    case 'error':
+                        console.error('Error:', data.message);
+                        break;
+                }
+            }
+
+            handleBroadcast(data) {
+                switch (data.subscription_type) {
+                    case 'power_plant_status':
+                        this.updatePowerPlantStatus(data.data);
+                        break;
+                    case 'safety_events':
+                        this.updateSafetyEvents(data.data);
+                        break;
+                    case 'physics_data':
+                        this.updatePhysicsData(data.data);
+                        break;
+                    case 'ai_control':
+                        this.updateAIData(data.data);
+                        break;
+                }
+            }
+
+            updatePowerPlantStatus(data) {
+                if (data.metrics) {
+                    document.getElementById('total-power').textContent = `${data.metrics.total_power_output.toFixed(1)} MW`;
+                    document.getElementById('total-demand').textContent = `${data.metrics.total_demand.toFixed(1)} MW`;
+                    document.getElementById('efficiency').textContent = `${(data.metrics.efficiency * 100).toFixed(1)}%`;
+                    document.getElementById('temperature').textContent = `${data.metrics.temperature.toFixed(1)}°C`;
+                }
+
+                if (data.units) {
+                    this.updateUnitsGrid(data.units);
+                }
+            }
+
+            updateUnitsGrid(units) {
+                const grid = document.getElementById('units-grid');
+                grid.innerHTML = '';
+
+                units.forEach(unit => {
+                    const unitCard = document.createElement('div');
+                    unitCard.className = `unit-card ${unit.status === 'online' ? '' : 'offline'}`;
+                    
+                    unitCard.innerHTML = `
+                        <div class="unit-header">
+                            <div class="unit-name">${unit.name}</div>
+                            <div class="unit-status status-${unit.status}">${unit.status}</div>
+                        </div>
+                        <div class="unit-metrics">
+                            <div class="unit-metric">
+                                <span>Power Output:</span>
+                                <span>${unit.power_output.toFixed(1)} MW</span>
+                            </div>
+                            <div class="unit-metric">
+                                <span>Max Capacity:</span>
+                                <span>${unit.max_capacity.toFixed(1)} MW</span>
+                            </div>
+                            <div class="unit-metric">
+                                <span>Efficiency:</span>
+                                <span>${(unit.efficiency * 100).toFixed(1)}%</span>
+                            </div>
+                            <div class="unit-metric">
+                                <span>Utilization:</span>
+                                <span>${((unit.power_output / unit.max_capacity) * 100).toFixed(1)}%</span>
+                            </div>
+                        </div>
+                        <div class="unit-controls">
+                            <button class="btn ${unit.status === 'online' ? 'btn-danger' : 'btn-success'}" 
+                                    onclick="dashboard.toggleUnit('${unit.id}')">
+                                ${unit.status === 'online' ? 'Stop' : 'Start'}
+                            </button>
+                        </div>
+                    `;
+                    
+                    grid.appendChild(unitCard);
+                });
+            }
+
+            updateSafetyEvents(data) {
+                const container = document.getElementById('safety-events');
+                
+                if (data.events && data.events.length > 0) {
+                    container.innerHTML = '';
+                    
+                    data.events.forEach(event => {
+                        const eventDiv = document.createElement('div');
+                        eventDiv.className = `safety-event ${event.level}`;
+                        
+                        eventDiv.innerHTML = `
+                            <div class="event-header">
+                                <div class="event-type">${event.event_type.replace('_', ' ').toUpperCase()}</div>
+                                <div class="event-timestamp">${new Date(event.timestamp).toLocaleTimeString()}</div>
+                            </div>
+                            <div class="event-message">${event.message}</div>
+                        `;
+                        
+                        container.appendChild(eventDiv);
+                    });
+                } else {
+                    container.innerHTML = '<div class="loading">No active safety events</div>';
+                }
+            }
+
+            updatePhysicsData(data) {
+                if (data.turbines) {
+                    this.updateTurbineGrid(data.turbines);
+                }
+            }
+
+            updateTurbineGrid(turbines) {
+                const grid = document.getElementById('turbine-grid');
+                grid.innerHTML = '';
+
+                Object.values(turbines).forEach(turbine => {
+                    const turbineCard = document.createElement('div');
+                    turbineCard.className = 'turbine-card';
+                    
+                    turbineCard.innerHTML = `
+                        <div class="turbine-name">${turbine.id.replace('_', ' ').toUpperCase()}</div>
+                        <div class="turbine-metrics">
+                            <div class="unit-metric">
+                                <span>Position:</span>
+                                <span>${turbine.position.toFixed(2)} rad</span>
+                            </div>
+                            <div class="unit-metric">
+                                <span>Velocity:</span>
+                                <span>${turbine.velocity.toFixed(2)} rad/s</span>
+                            </div>
+                            <div class="unit-metric">
+                                <span>Power:</span>
+                                <span>${turbine.power_output.toFixed(1)} MW</span>
+                            </div>
+                            <div class="unit-metric">
+                                <span>Efficiency:</span>
+                                <span>${(turbine.efficiency * 100).toFixed(1)}%</span>
+                            </div>
+                            <div class="unit-metric">
+                                <span>Temperature:</span>
+                                <span>${turbine.temperature.toFixed(1)}°C</span>
+                            </div>
+                            <div class="unit-metric">
+                                <span>Pressure:</span>
+                                <span>${turbine.pressure.toFixed(1)} Bar</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    grid.appendChild(turbineCard);
+                });
+            }
+
+            updateAIData(data) {
+                // This would be implemented when AI data is available
+                const container = document.getElementById('ai-metrics');
+                container.innerHTML = '<div class="loading">AI data not available</div>';
+            }
+
+            toggleUnit(unitId) {
+                const command = document.querySelector(`[onclick*="${unitId}"]`).textContent.trim().toLowerCase();
+                
+                this.sendMessage({
+                    type: 'command',
+                    command: command === 'start' ? 'start_unit' : 'stop_unit',
+                    parameters: { unit_id: unitId }
+                });
+            }
+
+            updateConnectionStatus(connected) {
+                const dot = document.getElementById('connection-dot');
+                const status = document.getElementById('connection-status');
+                
+                if (connected) {
+                    dot.className = 'connection-dot connected';
+                    status.textContent = 'Connected';
+                } else {
+                    dot.className = 'connection-dot';
+                    status.textContent = 'Disconnected';
+                }
+            }
+
+            scheduleReconnect() {
+                if (!this.reconnectInterval) {
+                    this.reconnectInterval = setInterval(() => {
+                        if (!this.isConnected) {
+                            console.log('Attempting to reconnect...');
+                            this.connectWebSocket();
+                        }
+                    }, 5000);
+                }
+            }
+
+            clearReconnectInterval() {
+                if (this.reconnectInterval) {
+                    clearInterval(this.reconnectInterval);
+                    this.reconnectInterval = null;
+                }
+            }
+
+            startUpdateTimer() {
+                this.updateInterval = setInterval(() => {
+                    this.updateCurrentTime();
+                }, 1000);
+            }
+
+            updateCurrentTime() {
+                const now = new Date();
+                document.getElementById('current-time').textContent = now.toLocaleString();
+            }
+
+            // Emergency shutdown function
+            emergencyShutdown() {
+                if (confirm('Are you sure you want to initiate emergency shutdown?')) {
+                    this.sendMessage({
+                        type: 'command',
+                        command: 'emergency_shutdown',
+                        parameters: {}
+                    });
+                }
+            }
+        }
+
+        // Initialize dashboard
+        const dashboard = new DigitalPowerPlantDashboard();
+
+        // Add emergency shutdown button to header
+        document.addEventListener('DOMContentLoaded', () => {
+            const header = document.querySelector('.header');
+            const emergencyBtn = document.createElement('button');
+            emergencyBtn.className = 'btn btn-danger';
+            emergencyBtn.textContent = 'EMERGENCY SHUTDOWN';
+            emergencyBtn.style.marginLeft = '1rem';
+            emergencyBtn.onclick = () => dashboard.emergencyShutdown();
+            header.appendChild(emergencyBtn);
+        });
+    </script>
+</body>
+</html>
