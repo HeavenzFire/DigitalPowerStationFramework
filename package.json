@@ -1,0 +1,21 @@
+{
+  "name": "digital-power-plant",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "fastify": "5.6.1",
+    "@fastify/cors": "11.1.0",
+    "@fastify/static": "8.3.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "ts-node-dev": "2.0.0",
+    "@types/node": "24.8.1"
+  }
+}
