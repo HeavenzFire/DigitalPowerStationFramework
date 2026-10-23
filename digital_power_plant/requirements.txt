@@ -5,10 +5,10 @@ websockets==12.0
 pydantic==2.5.0
 
 # AI/ML
-torch==2.1.0
+torch==2.8.0
 numpy==1.24.3
 scipy==1.11.4
-scikit-learn==1.3.2
+scikit-learn==1.5.0
 
 # Physics Simulation
 matplotlib==3.8.2
@@ -16,7 +16,7 @@ plotly==5.17.0
 
 # Scientific Validation
 scipy==1.11.4
-scikit-learn==1.3.2
+scikit-learn==1.5.0
 
 # Database
 influxdb-client==1.38.0
